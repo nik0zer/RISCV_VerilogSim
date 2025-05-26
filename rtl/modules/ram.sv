@@ -1,9 +1,9 @@
 `include "common/defines.svh"
 
-module ram #(parameter N = 10, M = `DATA_WIDTH, OFFSET_BITS = 3)
+module ram #(parameter N = 10, M = `DATA_WIDTH, OFFSET_BITS = 3, ADR_WIDTH = `DATA_WIDTH)
             (input  logic         clk,
             input  logic         we,
-            input  logic [N-1:0] adr,
+            input  logic [ADR_WIDTH-1:0] adr,
             input  logic [M-1:0] din,
             output logic [M-1:0] dout);
 
