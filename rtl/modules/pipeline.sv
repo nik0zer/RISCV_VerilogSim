@@ -2,7 +2,7 @@
 `include "common/opcodes.svh"
 `include "common/alu_defines.svh"
 
-module pipeline (
+module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DATA_MEM_INIT_FILE = "") (
     input  logic clk_i,
     input  logic rst_i,
 
@@ -27,7 +27,7 @@ module pipeline (
     flopenr #(`DATA_WIDTH)
     flopenr_pc_f_prev(
         .clk(clk_i),
-        .reset(1'b0),
+        .reset(rst_i),
         .en(!stall_f),
         .d(pc_f_prev),
         .q(pc_f_new));
@@ -39,11 +39,12 @@ module pipeline (
         .N(`RAM_REAL_SIZE),
         .M(`INSTR_WIDTH),
         .OFFSET_BITS(2),
-        .ADR_WIDTH(`DATA_WIDTH)
+        .ADR_WIDTH(`DATA_WIDTH),
+        .INIT_FILE(INSTR_MEM_INIT_FILE)
     ) ram_instr(
         .clk(clk_i),
         .we(1'b0),
-        .adr(pc_f_prev),
+        .adr(pc_f_new),
         .din({`INSTR_WIDTH{1'b0}}),
         .dout(instr_f)
     );
@@ -71,7 +72,7 @@ module pipeline (
     flopenr #(`INSTR_WIDTH)
     flopenr_instr_f(
         .clk(clk_i),
-        .reset(flush_d),
+        .reset(flush_d || rst_i),
         .en(!stall_d),
         .d(instr_f),
         .q(instr_d)
@@ -80,7 +81,7 @@ module pipeline (
     flopenr #(`DATA_WIDTH)
     flopenr_pc_4_f(
         .clk(clk_i),
-        .reset(flush_d),
+        .reset(flush_d || rst_i),
         .en(!stall_d),
         .d(pc_4_f),
         .q(pc_4_d)
@@ -89,7 +90,7 @@ module pipeline (
     flopenr #(`DATA_WIDTH)
     flopenr_pc_f(
         .clk(clk_i),
-        .reset(flush_d),
+        .reset(flush_d || rst_i),
         .en(!stall_d),
         .d(pc_f_new),
         .q(pc_d)
@@ -394,7 +395,8 @@ module pipeline (
         .M(`DATA_WIDTH),
         .N(`RAM_REAL_SIZE),
         .ADR_WIDTH(`DATA_WIDTH),
-        .OFFSET_BITS(3)
+        .OFFSET_BITS(3),
+        .INIT_FILE(DATA_MEM_INIT_FILE)
     ) ram_data(
         .clk(clk_i),
         .we(mem_write_m),
@@ -439,13 +441,17 @@ module pipeline (
     );
 
 
+    logic [`DATA_WIDTH-1:0] pc_f_prev_calc;
+
     mux2 #(.WIDTH(`DATA_WIDTH))
     mux2_pc_w(
         .data0_i(pc_4_f),
         .data1_i(pc_target_e),
         .sel_i(pc_src_e),
-        .data_o(pc_f_prev)
+        .data_o(pc_f_prev_calc)
     );
+
+    assign pc_f_prev = rst_i ? 32'h0 : pc_f_prev_calc;
 
 
 

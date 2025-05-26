@@ -19,7 +19,7 @@ function(add_verilator_test test_name)
         COMMAND ${CMAKE_COMMAND} -E make_directory ${OBJ_DIR}
         COMMAND ${PROJECT_VERILATOR_EXECUTABLE}
                 -Wall --Wno-fatal --cc --exe --build --trace
-                -Wno-UNUSED
+                # -Wno-UNUSED
                 --top-module ${VERILOG_MODULE_NAME}
                 -I${RTL_INCLUDE_PATH}
                 ${ALL_RTL_FILES}
