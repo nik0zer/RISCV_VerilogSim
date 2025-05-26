@@ -10,25 +10,25 @@ module pipeline (
     output logic [`INSTR_WIDTH-1:0] instr_f_o,
     output logic [`DATA_WIDTH-1:0] imm_o,
     output logic [`REG_ADDR_WIDTH-1:0] rd_o,
-    output logic [`DATA_WIDTH-1:0] rd_val_o,
     output logic [`REG_ADDR_WIDTH-1:0] rs1_o,
     output logic [`DATA_WIDTH-1:0] rs1_val_o,
     output logic [`REG_ADDR_WIDTH-1:0] rs2_o,
-    output logic [`DATA_WIDTH-1:0] rs2_val_o
+    output logic [`DATA_WIDTH-1:0] rs2_val_o,
+    output logic [`DATA_WIDTH-1:0] wd3_d_o
 );
-
     // Fetch Stage
 
     logic [`DATA_WIDTH-1:0] pc_f_new;
     logic [`DATA_WIDTH-1:0] pc_f_prev;
+    logic stall_f = 1'b0;
 
     assign pc_f_o = pc_f_new;
 
     flopenr #(`DATA_WIDTH)
     flopenr_pc_f_prev(
         .clk(clk_i),
-        .reset(rst_i),
-        .en(1'b1),
+        .reset(1'b0),
+        .en(!stall_f),
         .d(pc_f_prev),
         .q(pc_f_new));
 
@@ -48,14 +48,14 @@ module pipeline (
         .dout(instr_f)
     );
 
-    logic [`DATA_WIDTH-1:0] pc_f_4;
+    logic [`DATA_WIDTH-1:0] pc_4_f;
 
     alu pc_4_alu(
         .operand_a(pc_f_new),
         .operand_b(4),
         .alu_op_select({`ALU_OP_ADD}),
-        .alu_modifier(1'b0),
-        .result(pc_f_4)
+        .alu_modifier(`ALU_SELECT_SIGNED),
+        .result(pc_4_f)
     );
 
     // Flopenr Registers between Fetch and Decode
@@ -72,17 +72,17 @@ module pipeline (
     flopenr_instr_f(
         .clk(clk_i),
         .reset(flush_d),
-        .en(~stall_d),
+        .en(!stall_d),
         .d(instr_f),
         .q(instr_d)
     );
 
     flopenr #(`DATA_WIDTH)
-    flopenr_pc_f_4(
+    flopenr_pc_4_f(
         .clk(clk_i),
         .reset(flush_d),
-        .en(~stall_d),
-        .d(pc_f_4),
+        .en(!stall_d),
+        .d(pc_4_f),
         .q(pc_4_d)
     );
 
@@ -90,7 +90,7 @@ module pipeline (
     flopenr_pc_f(
         .clk(clk_i),
         .reset(flush_d),
-        .en(~stall_d),
+        .en(!stall_d),
         .d(pc_f_new),
         .q(pc_d)
     );
@@ -107,8 +107,6 @@ module pipeline (
     assign rs2_val_o = rs2_val_d;
     logic [`REG_ADDR_WIDTH-1:0] rd_d;
     assign rd_o = rd_d;
-    logic [`DATA_WIDTH-1:0] rd_val_d;
-    assign rd_val_o = rd_val_d;
     logic [`DATA_WIDTH-1:0] imm_d;
     logic [`INSTR_WIDTH-1:0] imm_d_32;
     assign imm_d = {{(`DATA_WIDTH-`INSTR_WIDTH){imm_d_32[31]}}, imm_d_32};
@@ -123,6 +121,8 @@ module pipeline (
     logic [1:0] imm_src_d;
     logic [`REG_ADDR_WIDTH-1:0] wa3_d;
     logic [`DATA_WIDTH-1:0] wd3_d;
+    logic we3_d;
+    assign wd3_d_o = wd3_d;
     logic is_u_type_d;
 
     control_unit cu(
@@ -143,8 +143,8 @@ module pipeline (
     );
 
     regfile regfile(
-        .clk(~clk_i),
-        .we3(1'b1),
+        .clk(!clk_i),
+        .we3(we3_d),
         .a1(instr_d[19:15]),
         .a2(instr_d[24:20]),
         .a3(wa3_d),
@@ -163,6 +163,291 @@ module pipeline (
         .immext(imm_d_32)
     );
 
-    // Flopenr Registers between Decode and Execute
+    // Flopr Registers between Decode and Execute
+
+    logic flush_e = 1'b0;
+
+    logic reg_write_e;
+    logic [1:0] result_src_e;
+    logic mem_write_e;
+    logic jump_e;
+    logic branch_e;
+    logic [3:0] alu_control_e;
+    logic alu_src_e;
+    logic [`DATA_WIDTH-1:0] rd1_e;
+    logic [`DATA_WIDTH-1:0] rd2_e;
+    logic [`DATA_WIDTH-1:0] pc_e;
+    logic [`REG_ADDR_WIDTH-1:0] rs1_e;
+    logic [`REG_ADDR_WIDTH-1:0] rs2_e;
+    logic [`REG_ADDR_WIDTH-1:0] rd_e;
+    logic [`DATA_WIDTH-1:0] imm_e;
+    logic [`DATA_WIDTH-1:0] pc_4_e;
+
+    flopr #(.WIDTH(1))
+    flopr_reg_write_e(
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(reg_write_d),
+        .q(reg_write_e)
+    );
+
+    flopr #(.WIDTH(2))
+    flopr_result_src_e(
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(result_src_d),
+        .q(result_src_e)
+    );
+
+    flopr #(.WIDTH(1))
+    flopr_mem_write_e(
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(mem_write_d),
+        .q(mem_write_e)
+    );
+
+    flopr #(.WIDTH(1))
+    flopr_jump_e(
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(jump_d),
+        .q(jump_e)
+    );
+
+    flopr #(.WIDTH(1))
+    flopr_branch_e(
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(branch_d),
+        .q(branch_e)
+    );
+
+    flopr #(.WIDTH(4))
+    flopr_alu_control_e(
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(alu_control_d),
+        .q(alu_control_e)
+    );
+
+    flopr #(.WIDTH(1))
+    flopr_alu_src_e(
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(alu_src_d),
+        .q(alu_src_e)
+    );
+
+    flopr #(.WIDTH(`DATA_WIDTH))
+    flopr_rd1_e(
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(rs1_val_d),
+        .q(rd1_e)
+    );
+
+    flopr #(.WIDTH(`DATA_WIDTH))
+    flopr_rd2_e(
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(rs2_val_d),
+        .q(rd2_e)
+    );
+
+    flopr #(.WIDTH(`DATA_WIDTH))
+    flopr_pc_e(
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(pc_d),
+        .q(pc_e)
+    );
+
+    flopr #(.WIDTH(`REG_ADDR_WIDTH))
+    flopr_rs1_e(
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(rs1_d),
+        .q(rs1_e)
+    );
+
+    flopr #(.WIDTH(`REG_ADDR_WIDTH))
+    flopr_rs2_e(
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(rs2_d),
+        .q(rs2_e)
+    );
+
+    flopr #(.WIDTH(`REG_ADDR_WIDTH))
+    flopr_rd_e(
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(rd_d),
+        .q(rd_e)
+    );
+
+    flopr #(.WIDTH(`DATA_WIDTH))
+    flopr_imm_e(
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(imm_d),
+        .q(imm_e)
+    );
+
+    flopr #(.WIDTH(`DATA_WIDTH))
+    flopr_pc_4_e(
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(pc_4_d),
+        .q(pc_4_e)
+    );
+
+    // Execute Stage
+
+    logic [`DATA_WIDTH-1:0] alu_result_m;
+    logic [`DATA_WIDTH-1:0] alu_operand_a_e;
+    logic [`DATA_WIDTH-1:0] alu_operand_b_reg;
+    logic [`DATA_WIDTH-1:0] alu_operand_b_e;
+    logic [1:0] forward_a_e = 2'b00;
+    logic [1:0] forward_b_e = 2'b00;
+    logic zero_flag_e;
+    logic [`DATA_WIDTH-1:0] alu_result_e;
+    logic [`DATA_WIDTH-1:0] write_data_e;
+    assign write_data_e = alu_operand_b_reg;
+    logic [`DATA_WIDTH-1:0] pc_target_e;
+
+
+
+    mux3 #(.WIDTH(`DATA_WIDTH))
+    mux3_alu_operand_a_e(
+        .data0_i(rd1_e),
+        .data1_i(wd3_d),
+        .data2_i(alu_result_m),
+        .sel_i(forward_a_e),
+        .data_o(alu_operand_a_e)
+    );
+
+    mux3 #(.WIDTH(`DATA_WIDTH))
+    mux3_alu_operand_b_e(
+        .data0_i(rd2_e),
+        .data1_i(wd3_d),
+        .data2_i(alu_result_m),
+        .sel_i(forward_b_e),
+        .data_o(alu_operand_b_reg)
+    );
+
+    mux2 #(.WIDTH(`DATA_WIDTH))
+    mux2_alu_operand_b_e(
+        .data0_i(alu_operand_b_reg),
+        .data1_i(imm_e),
+        .sel_i(alu_src_e),
+        .data_o(alu_operand_b_e)
+    );
+
+    alu main_alu(
+        .operand_a(alu_operand_a_e),
+        .operand_b(alu_operand_b_e),
+        .alu_op_select(alu_control_e[2:0]),
+        .alu_modifier(alu_control_e[3]),
+        .result(alu_result_e),
+        .zero_flag(zero_flag_e)
+    );
+
+    alu pc_alu(
+        .operand_a(pc_e),
+        .operand_b(imm_e),
+        .alu_op_select(`ALU_OP_ADD),
+        .alu_modifier(`ALU_SELECT_SIGNED),
+        .result(pc_target_e)
+    );
+
+    logic pc_src_e;
+    assign pc_src_e = (zero_flag_e && branch_e) || jump_e;
+
+    // Registers between execute and memory
+
+    logic reg_write_m;
+    logic [1:0] result_src_m;
+    logic mem_write_m;
+
+    logic [`DATA_WIDTH-1:0] write_data_m;
+    logic [`REG_ADDR_WIDTH-1:0] rd_m;
+    logic [`DATA_WIDTH-1:0] pc_4_m;
+
+    always_ff @(posedge clk_i ) begin
+        reg_write_m <= reg_write_e;
+        result_src_m <= result_src_e;
+        mem_write_m <= mem_write_e;
+
+        alu_result_m <= alu_result_e;
+        write_data_m <= write_data_e;
+        rd_m <= rd_e;
+        pc_4_m <= pc_4_e;
+    end
+
+    // Memory Stage
+
+    logic [`DATA_WIDTH-1:0] read_data_m;
+
+    ram #(
+        .M(`DATA_WIDTH),
+        .N(`RAM_REAL_SIZE),
+        .ADR_WIDTH(`DATA_WIDTH),
+        .OFFSET_BITS(3)
+    ) ram_data(
+        .clk(clk_i),
+        .we(mem_write_m),
+        .adr(alu_result_m),
+        .din(write_data_m),
+        .dout(read_data_m)
+    );
+
+    // Registers between memory and writeback
+    logic reg_write_w;
+    logic [1:0] result_src_w;
+
+    logic [`DATA_WIDTH-1:0] alu_result_w;
+    logic [`DATA_WIDTH-1:0] read_data_w;
+    logic [`REG_ADDR_WIDTH-1:0] rd_w;
+    logic [`DATA_WIDTH-1:0] pc_4_w;
+
+    always_ff @( posedge clk_i ) begin
+        reg_write_w <= reg_write_m;
+        result_src_w <= result_src_m;
+
+        alu_result_w <= alu_result_m;
+        read_data_w <= read_data_m;
+        rd_w <= rd_m;
+        pc_4_w <= pc_4_m;
+    end
+
+    // Writeback Stage
+
+    logic [`DATA_WIDTH-1:0] result_w;
+    assign wd3_d = result_w;
+    assign we3_d = reg_write_w;
+    assign wa3_d = rd_w;
+
+    mux3 #(.WIDTH(`DATA_WIDTH))
+    mux3_result_w(
+        .data0_i(alu_result_w),
+        .data1_i(read_data_w),
+        .data2_i(pc_4_w),
+        .sel_i(result_src_w),
+        .data_o(result_w)
+    );
+
+
+    mux2 #(.WIDTH(`DATA_WIDTH))
+    mux2_pc_w(
+        .data0_i(pc_4_f),
+        .data1_i(pc_target_e),
+        .sel_i(pc_src_e),
+        .data_o(pc_f_prev)
+    );
+
+
+
 
 endmodule
