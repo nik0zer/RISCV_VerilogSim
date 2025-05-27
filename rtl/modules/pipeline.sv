@@ -2,7 +2,8 @@
 `include "common/opcodes.svh"
 `include "common/alu_defines.svh"
 
-module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DATA_MEM_INIT_FILE = "") (
+module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DATA_MEM_INIT_FILE = "",
+                  parameter [`DATA_WIDTH-1:0] PC_START_ADDR = 64'h0) (
     input  logic clk_i,
     input  logic rst_i,
 
@@ -14,7 +15,8 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
     output logic [`DATA_WIDTH-1:0] rs1_val_o,
     output logic [`REG_ADDR_WIDTH-1:0] rs2_o,
     output logic [`DATA_WIDTH-1:0] rs2_val_o,
-    output logic [`DATA_WIDTH-1:0] wd3_d_o
+    output logic [`DATA_WIDTH-1:0] wd3_d_o,
+    output logic we3_d_o
 );
     // Fetch Stage
 
@@ -27,7 +29,7 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
     flopenr #(`DATA_WIDTH)
     flopenr_pc_f_prev(
         .clk(clk_i),
-        .reset(rst_i),
+        .reset(1'b0),
         .en(!stall_f),
         .d(pc_f_prev),
         .q(pc_f_new));
@@ -124,6 +126,7 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
     logic [`DATA_WIDTH-1:0] wd3_d;
     logic we3_d;
     assign wd3_d_o = wd3_d;
+    assign we3_d_o = we3_d;
     logic is_u_type_d;
 
     control_unit cu(
@@ -451,7 +454,7 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
         .data_o(pc_f_prev_calc)
     );
 
-    assign pc_f_prev = rst_i ? 32'h0 : pc_f_prev_calc;
+    assign pc_f_prev = rst_i ? PC_START_ADDR - 4 : pc_f_prev_calc;
 
 
 

@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
-#include <cassert> // Для assert, если он нужен где-то еще
+#include <cassert>
 
 // Макросы, определяемые CMake
 #ifndef PIPELINE_TEST_CASE_NAME_STR_RAW
@@ -31,6 +31,7 @@
 const std::string G_PIPELINE_TEST_CASE_NAME = STRINGIFY(PIPELINE_TEST_CASE_NAME_STR_RAW);
 const std::string G_EXPECTED_WD3_FILE_PATH = STRINGIFY(EXPECTED_WD3_FILE_PATH_STR_RAW);
 const int G_NUM_CYCLES_TO_RUN = NUM_CYCLES_TO_RUN;
+const uint64_t X_DEF = 0xFFFFFFFFFFFFFFFFUL;
 
 
 vluint64_t sim_time = 0;
@@ -64,7 +65,12 @@ bool load_expected_wd3_values(const std::string& filepath, std::vector<uint64_t>
             continue;
         }
         try {
-            values.push_back(std::stoull(line, nullptr, 16));
+            // Если строка "X" или "x", то это "не важно" или "нет записи", будем хранить спец. значение, например X_DEF
+            if (line == "X" || line == "x") {
+                values.push_back(X_DEF);
+            } else {
+                values.push_back(std::stoull(line, nullptr, 16));
+            }
             line_count++;
         } catch (const std::exception& e) {
             std::cerr << "Error parsing hex value '" << line << "' at line " << (line_count + 1) << ": " << e.what() << std::endl;
@@ -72,13 +78,10 @@ bool load_expected_wd3_values(const std::string& filepath, std::vector<uint64_t>
         }
     }
     file.close();
-    // Сверяем количество прочитанных значений с количеством циклов.
-    // Если значений меньше, тест не сможет проверить все циклы.
-    // Если значений больше, это просто предупреждение.
     if (line_count < expected_num_cycles) {
         std::cerr << "ERROR: Number of expected wd3_o values (" << line_count
                   << ") is less than NUM_CYCLES_TO_RUN (" << expected_num_cycles << ")." << std::endl;
-        std::cerr << "Please provide an expected value for each cycle." << std::endl;
+        std::cerr << "Please provide an expected value (or 'X' if no write) for each cycle." << std::endl;
         return false;
     }
     if (line_count > expected_num_cycles) {
@@ -118,26 +121,51 @@ int main(int argc, char** argv) {
 
     bool test_passed = true;
 
-    std::cout << "\nCycle | PC_F     | Instr_D  | WD3_Out (Got) | WD3_Out (Exp) | Status" << std::endl;
-    std::cout << "------|----------|----------|---------------|-----------------|-------" << std::endl;
+    std::cout << "\nCycle | PC_F     | Instr_D  | WE3 | WD3_Out (Got) | WD3_Out (Exp) | Status" << std::endl;
+    std::cout << "------|----------|----------|-----|---------------|-----------------|-------" << std::endl;
 
     for (int cycle = 0; cycle < G_NUM_CYCLES_TO_RUN; ++cycle) {
         tick(top, tfp);
 
-        uint64_t current_wd3 = top->wd3_d_o;
-        uint64_t expected_wd3 = expected_wd3_per_cycle[cycle]; // Мы уже проверили, что размер достаточный
+        uint64_t current_wd3_value = top->wd3_d_o;
+        bool current_we3 = top->we3_d_o;
+        uint64_t effective_wd3_got = current_we3 ? current_wd3_value : 0; // Считаем 0, если WE3=0
+
+        uint64_t expected_wd3 = expected_wd3_per_cycle[cycle];
+        bool expect_write = (expected_wd3 != X_DEF); // Если не X_DEF, значит ожидаем запись
+        uint64_t effective_expected_wd3 = expect_write ? expected_wd3 : 0;
+
 
         std::cout << std::setw(5) << std::dec << cycle << " | "
                   << "0x" << std::setw(8) << std::setfill('0') << std::hex << top->pc_f_o << " | "
                   << "0x" << std::setw(8) << std::setfill('0') << std::hex << top->instr_f_o << " | "
-                  << "0x" << std::setw(16) << std::setfill('0') << std::hex << current_wd3 << " | "
-                  << "0x" << std::setw(16) << std::setfill('0') << std::hex << expected_wd3;
+                  << std::setw(3) << std::dec << (current_we3 ? "1" : "0") << " | " // Вывод WE3
+                  << "0x" << std::setw(16) << std::setfill('0') << std::hex << current_wd3_value << " | "
+                  << (expect_write ? ("0x" + [&]{std::stringstream ss; ss << std::setw(16) << std::setfill('0') << std::hex << expected_wd3; return ss.str(); }()) : "      X (no write)     ");
 
-        if (current_wd3 != expected_wd3) {
+        bool cycle_pass = true;
+        if (expect_write) { // Если в expected файле число (а не X)
+            if (!current_we3) { // А записи не было
+                cycle_pass = false;
+                std::cout << " | FAIL (Exp Write, Got No Write)";
+            } else if (current_wd3_value != expected_wd3) { // Запись была, но значение не то
+                cycle_pass = false;
+                std::cout << " | FAIL (Value Mismatch)";
+            } else { // Запись была, значение то
+                std::cout << " | PASS";
+            }
+        } else { // Если в expected файле X (ожидаем, что записи не будет)
+            if (current_we3) { // А запись была
+                cycle_pass = false;
+                std::cout << " | FAIL (Exp No Write, Got Write)";
+            } else { // Записи не было, как и ожидалось
+                std::cout << " | PASS (No Write)";
+            }
+        }
+        std::cout << std::endl;
+
+        if (!cycle_pass) {
             test_passed = false;
-            std::cout<< " | FAIL" << std::endl;
-        } else {
-            std::cout<< " | PASS" << std::endl;
         }
         std::cout << std::setfill(' ');
     }
