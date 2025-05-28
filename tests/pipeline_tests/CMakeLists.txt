@@ -99,7 +99,7 @@ function(add_pipeline_test test_case_name asm_file_rel_path expected_wd3_file_re
 endfunction()
 
 add_pipeline_test(addi_basic_asm "addi_basic_instr.s" "addi_basic_expected.txt" 12 "10000")
-add_pipeline_test(jump_basic_asm "jump.s" "jump_expected.txt" 17 "10000")
+add_pipeline_test(jump_basic_asm "jump.s" "jump_expected.txt" 20 "10000")
 add_pipeline_test(beq_basic_asm "beq.s" "beq_expected.txt" 22 "10000")
 add_pipeline_test(mem_basic_asm "mem.s" "mem_expected.txt" 12 "10000")
 add_pipeline_test(complex_asm "complex.s" "complex_expected.txt" 55 "10000")

@@ -378,17 +378,63 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
     logic [`DATA_WIDTH-1:0] write_data_m;
     logic [`REG_ADDR_WIDTH-1:0] rd_m;
     logic [`DATA_WIDTH-1:0] pc_4_m;
+    logic flush_m = 1'b0;
 
-    always_ff @(posedge clk_i ) begin
-        reg_write_m <= reg_write_e;
-        result_src_m <= result_src_e;
-        mem_write_m <= mem_write_e;
+    flopr #(.WIDTH(`DATA_WIDTH))
+    flopr_reg_write_m(
+        .clk(clk_i),
+        .reset(flush_m),
+        .d(reg_write_e),
+        .q(reg_write_m)
+    );
 
-        alu_result_m <= alu_result_e;
-        write_data_m <= write_data_e;
-        rd_m <= rd_e;
-        pc_4_m <= pc_4_e;
-    end
+    flopr #(.WIDTH(2))
+    flopr_result_src_m(
+        .clk(clk_i),
+        .reset(flush_m),
+        .d(result_src_e),
+        .q(result_src_m)
+    );
+
+    flopr #(.WIDTH(1))
+    flopr_mem_write_m(
+        .clk(clk_i),
+        .reset(flush_m),
+        .d(mem_write_e),
+        .q(mem_write_m)
+    );
+
+    flopr #(.WIDTH(`DATA_WIDTH))
+    flopr_alu_result_m(
+        .clk(clk_i),
+        .reset(flush_m),
+        .d(alu_result_e),
+        .q(alu_result_m)
+    );
+
+    flopr #(.WIDTH(`DATA_WIDTH))
+    flopr_write_data_m(
+        .clk(clk_i),
+        .reset(flush_m),
+        .d(write_data_e),
+        .q(write_data_m)
+    );
+
+    flopr #(.WIDTH(`REG_ADDR_WIDTH))
+    flopr_rd_m(
+        .clk(clk_i),
+        .reset(flush_m),
+        .d(rd_e),
+        .q(rd_m)
+    );
+
+    flopr #(.WIDTH(`DATA_WIDTH))
+    flopr_pc_4_m(
+        .clk(clk_i),
+        .reset(flush_m),
+        .d(pc_4_e),
+        .q(pc_4_m)
+    );
 
     // Memory Stage
 
@@ -416,16 +462,55 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
     logic [`DATA_WIDTH-1:0] read_data_w;
     logic [`REG_ADDR_WIDTH-1:0] rd_w;
     logic [`DATA_WIDTH-1:0] pc_4_w;
+    logic flush_w = 1'b0;
 
-    always_ff @( posedge clk_i ) begin
-        reg_write_w <= reg_write_m;
-        result_src_w <= result_src_m;
+    flopr #(.WIDTH(1))
+    flopr_reg_write_w(
+        .clk(clk_i),
+        .reset(flush_w),
+        .d(reg_write_m),
+        .q(reg_write_w)
+    );
 
-        alu_result_w <= alu_result_m;
-        read_data_w <= read_data_m;
-        rd_w <= rd_m;
-        pc_4_w <= pc_4_m;
-    end
+    flopr #(.WIDTH(2))
+    flopr_result_src_w(
+        .clk(clk_i),
+        .reset(flush_w),
+        .d(result_src_m),
+        .q(result_src_w)
+    );
+
+    flopr #(.WIDTH(`DATA_WIDTH))
+    flopr_alu_result_w(
+        .clk(clk_i),
+        .reset(flush_w),
+        .d(alu_result_m),
+        .q(alu_result_w)
+    );
+
+    flopr #(.WIDTH(`DATA_WIDTH))
+    flopr_read_data_w(
+        .clk(clk_i),
+        .reset(flush_w),
+        .d(read_data_m),
+        .q(read_data_w)
+    );
+
+    flopr #(.WIDTH(`REG_ADDR_WIDTH))
+    flopr_rd_w(
+        .clk(clk_i),
+        .reset(flush_w),
+        .d(rd_m),
+        .q(rd_w)
+    );
+
+    flopr #(.WIDTH(`DATA_WIDTH))
+    flopr_pc_4_w(
+        .clk(clk_i),
+        .reset(flush_w),
+        .d(pc_4_m),
+        .q(pc_4_w)
+    );
 
     // Writeback Stage
 
