@@ -3,10 +3,7 @@
 
 _start:
     addi x1, x0, 1
-    nop
-    nop
 loop:
-    nop
     addi x1, x1, 1
     jal x4, loop
     nop

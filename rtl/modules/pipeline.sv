@@ -22,7 +22,7 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
 
     logic [`DATA_WIDTH-1:0] pc_f_new;
     logic [`DATA_WIDTH-1:0] pc_f_prev;
-    logic stall_f = 1'b0;
+    logic stall_f;
 
     assign pc_f_o = pc_f_new;
 
@@ -63,8 +63,8 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
 
     // Flopenr Registers between Fetch and Decode
 
-    logic stall_d = 1'b0;
-    logic flush_d = 1'b0;
+    logic stall_d;
+    logic flush_d;
 
     logic [`INSTR_WIDTH-1:0] instr_d;
     logic [`DATA_WIDTH-1:0] pc_d;
@@ -169,7 +169,7 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
 
     // Flopr Registers between Decode and Execute
 
-    logic flush_e = 1'b0;
+    logic flush_e;
 
     logic reg_write_e;
     logic [1:0] result_src_e;
@@ -313,8 +313,8 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
     logic [`DATA_WIDTH-1:0] alu_operand_a_e;
     logic [`DATA_WIDTH-1:0] alu_operand_b_reg;
     logic [`DATA_WIDTH-1:0] alu_operand_b_e;
-    logic [1:0] forward_a_e = 2'b00;
-    logic [1:0] forward_b_e = 2'b00;
+    logic [1:0] forward_a_e;
+    logic [1:0] forward_b_e;
     logic zero_flag_e;
     logic [`DATA_WIDTH-1:0] alu_result_e;
     logic [`DATA_WIDTH-1:0] write_data_e;
@@ -456,7 +456,29 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
 
     assign pc_f_prev = rst_i ? PC_START_ADDR - 4 : pc_f_prev_calc;
 
+    hazard_unit hazard_unit_inst(
+        .Rs1E(rs1_e),
+        .Rs2E(rs2_e),
+        .Rs1D(rs1_d),
+        .Rs2D(rs2_d),
+        .RdE(rd_e),
+        .RdM(rd_m),
+        .RdW(rd_w),
 
+        .RegWriteM(reg_write_m),
+        .RegWriteW(reg_write_w),
+
+        .ResultSrcE0(result_src_e[0]),
+        .PCSrcE(pc_src_e),
+
+        .ForwardAE(forward_a_e),
+        .ForwardBE(forward_b_e),
+
+        .StallF(stall_f),
+        .StallD(stall_d),
+        .FlushD(flush_d),
+        .FlushE(flush_e)
+    );
 
 
 endmodule

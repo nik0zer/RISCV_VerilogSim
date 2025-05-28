@@ -31,6 +31,7 @@ function(add_pipeline_test test_case_name asm_file_rel_path expected_wd3_file_re
         ${CMAKE_SOURCE_DIR}/rtl/modules/alu.sv
         ${CMAKE_SOURCE_DIR}/rtl/modules/mux2.sv
         ${CMAKE_SOURCE_DIR}/rtl/modules/mux3.sv
+        ${CMAKE_SOURCE_DIR}/rtl/modules/hazard_unit.sv
     )
     set(RTL_INCLUDE_PATH ${CMAKE_SOURCE_DIR}/rtl)
     set(TEST_CASE_INPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
@@ -97,6 +98,8 @@ function(add_pipeline_test test_case_name asm_file_rel_path expected_wd3_file_re
     message(STATUS "  Expected WD3 file: ${EXPECTED_WD3_FILE_FULL_PATH}")
 endfunction()
 
-add_pipeline_test(addi_basic_asm "addi_basic_instr.s" "addi_basic_expected.txt" 17 "10000")
-add_pipeline_test(jump_basic_asm "jump.s" "jump_expected.txt" 21 "10000")
-add_pipeline_test(beq_basic_asm "beq.s" "beq_expected.txt" 21 "10000")
+add_pipeline_test(addi_basic_asm "addi_basic_instr.s" "addi_basic_expected.txt" 12 "10000")
+add_pipeline_test(jump_basic_asm "jump.s" "jump_expected.txt" 17 "10000")
+add_pipeline_test(beq_basic_asm "beq.s" "beq_expected.txt" 22 "10000")
+add_pipeline_test(mem_basic_asm "mem.s" "mem_expected.txt" 12 "10000")
+add_pipeline_test(complex_asm "complex.s" "complex_expected.txt" 55 "10000")
