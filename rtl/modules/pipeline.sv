@@ -128,6 +128,7 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
     assign wd3_d_o = wd3_d;
     assign we3_d_o = we3_d;
     logic is_u_type_d;
+    logic mem_2_store_d;
 
     control_unit cu(
         .op_i(instr_d[6:0]),
@@ -143,7 +144,8 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
         .ImmSelD_o(imm_src_d),
         .Is_U_typeD_o(is_u_type_d),
         .ALUControlD_o(alu_control_d[2:0]),
-        .ALUModifierD_o(alu_control_d[3])
+        .ALUModifierD_o(alu_control_d[3]),
+        .mem_2_store(mem_2_store_d)
     );
 
     regfile regfile(
@@ -170,6 +172,7 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
     // Flopr Registers between Decode and Execute
 
     logic flush_e;
+    logic stall_e;
 
     logic reg_write_e;
     logic [1:0] result_src_e;
@@ -187,120 +190,146 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
     logic [`DATA_WIDTH-1:0] imm_e;
     logic [`DATA_WIDTH-1:0] pc_4_e;
 
-    flopr #(.WIDTH(1))
-    flopr_reg_write_e(
+    logic mem_2_store_e;
+
+    flopenr #(.WIDTH(1))
+    flopenr_mem_2_store_e(
+        .en(!stall_e),
+        .clk(clk_i),
+        .reset(flush_e),
+        .d(mem_2_store_d),
+        .q(mem_2_store_e)
+    );
+
+    flopenr #(.WIDTH(1))
+    flopenr_reg_write_e(
+        .en(!stall_e),
         .clk(clk_i),
         .reset(flush_e),
         .d(reg_write_d),
         .q(reg_write_e)
     );
 
-    flopr #(.WIDTH(2))
-    flopr_result_src_e(
+    flopenr #(.WIDTH(2))
+    flopenr_result_src_e(
+        .en(!stall_e),
         .clk(clk_i),
         .reset(flush_e),
         .d(result_src_d),
         .q(result_src_e)
     );
 
-    flopr #(.WIDTH(1))
-    flopr_mem_write_e(
+    flopenr #(.WIDTH(1))
+    flopenr_mem_write_e(
+        .en(!stall_e),
         .clk(clk_i),
         .reset(flush_e),
         .d(mem_write_d),
         .q(mem_write_e)
     );
 
-    flopr #(.WIDTH(1))
-    flopr_jump_e(
+    flopenr #(.WIDTH(1))
+    flopenr_jump_e(
+        .en(!stall_e),
         .clk(clk_i),
         .reset(flush_e),
         .d(jump_d),
         .q(jump_e)
     );
 
-    flopr #(.WIDTH(1))
-    flopr_branch_e(
+    flopenr #(.WIDTH(1))
+    flopenr_branch_e(
+        .en(!stall_e),
         .clk(clk_i),
         .reset(flush_e),
         .d(branch_d),
         .q(branch_e)
     );
 
-    flopr #(.WIDTH(4))
-    flopr_alu_control_e(
+    flopenr #(.WIDTH(4))
+    flopenr_alu_control_e(
+        .en(!stall_e),
         .clk(clk_i),
         .reset(flush_e),
         .d(alu_control_d),
         .q(alu_control_e)
     );
 
-    flopr #(.WIDTH(1))
-    flopr_alu_src_e(
+    flopenr #(.WIDTH(1))
+    flopenr_alu_src_e(
+        .en(!stall_e),
         .clk(clk_i),
         .reset(flush_e),
         .d(alu_src_d),
         .q(alu_src_e)
     );
 
-    flopr #(.WIDTH(`DATA_WIDTH))
-    flopr_rd1_e(
+    flopenr #(.WIDTH(`DATA_WIDTH))
+    flopenr_rd1_e(
+        .en(!stall_e),
         .clk(clk_i),
         .reset(flush_e),
         .d(rs1_val_d),
         .q(rd1_e)
     );
 
-    flopr #(.WIDTH(`DATA_WIDTH))
-    flopr_rd2_e(
+    flopenr #(.WIDTH(`DATA_WIDTH))
+    flopenr_rd2_e(
+        .en(!stall_e),
         .clk(clk_i),
         .reset(flush_e),
         .d(rs2_val_d),
         .q(rd2_e)
     );
 
-    flopr #(.WIDTH(`DATA_WIDTH))
-    flopr_pc_e(
+    flopenr #(.WIDTH(`DATA_WIDTH))
+    flopenr_pc_e(
+        .en(!stall_e),
         .clk(clk_i),
         .reset(flush_e),
         .d(pc_d),
         .q(pc_e)
     );
 
-    flopr #(.WIDTH(`REG_ADDR_WIDTH))
-    flopr_rs1_e(
+    flopenr #(.WIDTH(`REG_ADDR_WIDTH))
+    flopenr_rs1_e(
+        .en(!stall_e),
         .clk(clk_i),
         .reset(flush_e),
         .d(rs1_d),
         .q(rs1_e)
     );
 
-    flopr #(.WIDTH(`REG_ADDR_WIDTH))
-    flopr_rs2_e(
+    flopenr #(.WIDTH(`REG_ADDR_WIDTH))
+    flopenr_rs2_e(
+        .en(!stall_e),
         .clk(clk_i),
         .reset(flush_e),
         .d(rs2_d),
         .q(rs2_e)
     );
 
-    flopr #(.WIDTH(`REG_ADDR_WIDTH))
-    flopr_rd_e(
+    flopenr #(.WIDTH(`REG_ADDR_WIDTH))
+    flopenr_rd_e(
+        .en(!stall_e),
         .clk(clk_i),
         .reset(flush_e),
         .d(rd_d),
         .q(rd_e)
     );
 
-    flopr #(.WIDTH(`DATA_WIDTH))
-    flopr_imm_e(
+    flopenr #(.WIDTH(`DATA_WIDTH))
+    flopenr_imm_e(
+        .en(!stall_e),
         .clk(clk_i),
         .reset(flush_e),
         .d(imm_d),
         .q(imm_e)
     );
 
-    flopr #(.WIDTH(`DATA_WIDTH))
-    flopr_pc_4_e(
+    flopenr #(.WIDTH(`DATA_WIDTH))
+    flopenr_pc_4_e(
+        .en(!stall_e),
         .clk(clk_i),
         .reset(flush_e),
         .d(pc_4_d),
@@ -371,6 +400,8 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
 
     // Registers between execute and memory
 
+    logic mem_2_store_m;
+
     logic reg_write_m;
     logic [1:0] result_src_m;
     logic mem_write_m;
@@ -379,57 +410,75 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
     logic [`REG_ADDR_WIDTH-1:0] rd_m;
     logic [`DATA_WIDTH-1:0] pc_4_m;
     logic flush_m = 1'b0;
+    logic stall_m = 1'b0;
 
-    flopr #(.WIDTH(`DATA_WIDTH))
-    flopr_reg_write_m(
+    flopenr #(.WIDTH(1))
+    flopenr_mem_2_store_m(
+        .en(!stall_m),
+        .clk(clk_i),
+        .reset(flush_m),
+        .d(mem_2_store_e),
+        .q(mem_2_store_m)
+    );
+
+
+    flopenr #(.WIDTH(`DATA_WIDTH))
+    flopenr_reg_write_m(
+        .en(!stall_m),
         .clk(clk_i),
         .reset(flush_m),
         .d(reg_write_e),
         .q(reg_write_m)
     );
 
-    flopr #(.WIDTH(2))
-    flopr_result_src_m(
+    flopenr #(.WIDTH(2))
+    flopenr_result_src_m(
+        .en(!stall_m),
         .clk(clk_i),
         .reset(flush_m),
         .d(result_src_e),
         .q(result_src_m)
     );
 
-    flopr #(.WIDTH(1))
-    flopr_mem_write_m(
+    flopenr #(.WIDTH(1))
+    flopenr_mem_write_m(
+        .en(!stall_m),
         .clk(clk_i),
         .reset(flush_m),
         .d(mem_write_e),
         .q(mem_write_m)
     );
 
-    flopr #(.WIDTH(`DATA_WIDTH))
-    flopr_alu_result_m(
+    flopenr #(.WIDTH(`DATA_WIDTH))
+    flopenr_alu_result_m(
+        .en(!stall_m),
         .clk(clk_i),
         .reset(flush_m),
         .d(alu_result_e),
         .q(alu_result_m)
     );
 
-    flopr #(.WIDTH(`DATA_WIDTH))
-    flopr_write_data_m(
+    flopenr #(.WIDTH(`DATA_WIDTH))
+    flopenr_write_data_m(
+        .en(!stall_m),
         .clk(clk_i),
         .reset(flush_m),
         .d(write_data_e),
         .q(write_data_m)
     );
 
-    flopr #(.WIDTH(`REG_ADDR_WIDTH))
-    flopr_rd_m(
+    flopenr #(.WIDTH(`REG_ADDR_WIDTH))
+    flopenr_rd_m(
+        .en(!stall_m),
         .clk(clk_i),
         .reset(flush_m),
         .d(rd_e),
         .q(rd_m)
     );
 
-    flopr #(.WIDTH(`DATA_WIDTH))
-    flopr_pc_4_m(
+    flopenr #(.WIDTH(`DATA_WIDTH))
+    flopenr_pc_4_m(
+        .en(!stall_m),
         .clk(clk_i),
         .reset(flush_m),
         .d(pc_4_e),
@@ -439,6 +488,20 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
     // Memory Stage
 
     logic [`DATA_WIDTH-1:0] read_data_m;
+    logic [`DATA_WIDTH-1:0] mem_addr;
+    logic stall_mem_2_store;
+
+    mem_2_store mem_2_store(
+        .clk(clk_i),
+        .rst(rst_i),
+        .mem_2_store_enable(mem_2_store_m),
+        .addr(alu_result_m),
+
+        .new_addr(mem_addr),
+        .stall_mem_2_store(stall_mem_2_store)
+    );
+
+
 
     ram #(
         .M(`DATA_WIDTH),
@@ -449,7 +512,7 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
     ) ram_data(
         .clk(clk_i),
         .we(mem_write_m),
-        .adr(alu_result_m),
+        .adr(mem_addr),
         .din(write_data_m),
         .dout(read_data_m)
     );
@@ -555,12 +618,16 @@ module pipeline #(parameter string INSTR_MEM_INIT_FILE = "", parameter string DA
 
         .ResultSrcE0(result_src_e[0]),
         .PCSrcE(pc_src_e),
+        .stall_mem_2_store(stall_mem_2_store),
 
         .ForwardAE(forward_a_e),
         .ForwardBE(forward_b_e),
 
         .StallF(stall_f),
         .StallD(stall_d),
+        .StallE(stall_e),
+        .StallM(stall_m),
+
         .FlushD(flush_d),
         .FlushE(flush_e)
     );

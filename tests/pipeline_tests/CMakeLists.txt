@@ -35,6 +35,7 @@ function(add_pipeline_test test_case_name asm_file_rel_path expected_wd3_file_re
         ${CMAKE_SOURCE_DIR}/rtl/modules/mux2.sv
         ${CMAKE_SOURCE_DIR}/rtl/modules/mux3.sv
         ${CMAKE_SOURCE_DIR}/rtl/modules/hazard_unit.sv
+        ${CMAKE_SOURCE_DIR}/rtl/modules/mem_2_store.sv
     )
     set(RTL_INCLUDE_PATH ${CMAKE_SOURCE_DIR}/rtl)
     set(TEST_CASE_INPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
@@ -120,3 +121,4 @@ add_pipeline_test(beq_basic_asm "beq.s" "beq_expected.txt" 22 "10000" ASM_MODE)
 add_pipeline_test(mem_basic_asm "mem.s" "mem_expected.txt" 12 "10000" ASM_MODE)
 add_pipeline_test(complex_asm "complex.s" "complex_expected.txt" 55 "10000" ASM_MODE)
 add_pipeline_test(addi_slti "addi_slti_instr_mem.hex" "addi_slti_expected.txt" 14 "10000" HEX_MODE)
+add_pipeline_test(store_16 "store_16.s" "store_16_expected.txt" 14 "10000" ASM_MODE)

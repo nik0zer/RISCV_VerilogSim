@@ -41,6 +41,7 @@ set(PIPELINE_RTL_FILES
     ${CMAKE_SOURCE_DIR}/rtl/modules/mux2.sv
     ${CMAKE_SOURCE_DIR}/rtl/modules/mux3.sv
     ${CMAKE_SOURCE_DIR}/rtl/modules/hazard_unit.sv
+    ${CMAKE_SOURCE_DIR}/rtl/modules/mem_2_store.sv
 )
 set(RTL_INCLUDE_PATH ${CMAKE_SOURCE_DIR}/rtl)
 

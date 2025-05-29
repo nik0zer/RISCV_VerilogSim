@@ -31,4 +31,8 @@
 `define RESSRC_MEM   2'b01 // Data from Memory
 `define RESSRC_PC4   2'b10 // PC + 4 (for JAL, JALR link address)
 
+
+// store 16 byte
+`define FUNC3_STORE16   3'b000
+
 `endif // OPCODES_SVH

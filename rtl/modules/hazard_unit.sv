@@ -15,12 +15,16 @@ module hazard_unit (
 
     input logic ResultSrcE0,
     input logic PCSrcE,
+    input logic stall_mem_2_store,
 
     output logic [1:0] ForwardAE,
     output logic [1:0] ForwardBE,
 
     output logic StallF,
     output logic StallD,
+    output logic StallE,
+    output logic StallM,
+
     output logic FlushD,
     output logic FlushE
 );
@@ -44,8 +48,10 @@ module hazard_unit (
 
 
         lwStall = ResultSrcE0 & ((Rs1D == RdE) | (Rs2D == RdE));
-        StallF  = lwStall;
-        StallD  = lwStall;
+        StallF  = lwStall | stall_mem_2_store;
+        StallD  = lwStall | stall_mem_2_store;
+        StallE  = stall_mem_2_store;
+        StallM  = stall_mem_2_store;
 
         FlushD = PCSrcE;
         FlushE = lwStall | PCSrcE;

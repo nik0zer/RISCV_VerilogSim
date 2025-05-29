@@ -16,13 +16,15 @@ module control_unit (
     output logic [1:0] ImmSelD_o,    // To select immediate type for imm_gen
     output logic       Is_U_typeD_o, // To indicate LUI/AUIPC for special imm handling
     output logic [2:0] ALUControlD_o,
-    output logic       ALUModifierD_o
+    output logic       ALUModifierD_o,
+    output logic       mem_2_store
 );
 
     logic [1:0] alu_op_type_w; // Wire between main_decoder and alu_decoder
 
     main_decoder main_dec_inst (
         .op_i(op_i),
+        .funct3_i(funct3_i),
 
         .RegWrite_o(RegWriteD_o),
         .ResultSrc_o(ResultSrcD_o),
@@ -32,7 +34,8 @@ module control_unit (
         .ALUSrc_o(ALUSrcD_o),
         .ImmSel_o(ImmSelD_o),
         .Is_U_type_o(Is_U_typeD_o),
-        .ALUOp_type_o(alu_op_type_w)
+        .ALUOp_type_o(alu_op_type_w),
+        .mem_2_store(mem_2_store)
     );
 
     alu_decoder alu_dec_inst (

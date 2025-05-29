@@ -3,6 +3,7 @@
 
 module main_decoder (
     input  logic [6:0] op_i,
+    input  logic [2:0] funct3_i,
 
     output logic       RegWrite_o,
     output logic [1:0] ResultSrc_o,
@@ -12,7 +13,8 @@ module main_decoder (
     output logic       ALUSrc_o,       // 0: ReadData2, 1: Immediate
     output logic [1:0] ImmSel_o,       // To select immediate type for imm_gen
     output logic       Is_U_type_o,    // To indicate LUI/AUIPC for special imm handling
-    output logic [1:0] ALUOp_type_o   // To alu_decoder
+    output logic [1:0] ALUOp_type_o,   // To alu_decoder
+    output logic       mem_2_store
 );
 
     always_comb begin
@@ -25,6 +27,7 @@ module main_decoder (
         ImmSel_o     = `IMM_SEL_I; // Default, often overridden
         Is_U_type_o  = 1'b0;
         ALUOp_type_o = `ALUOP_TYPE_R_I; // Default
+        mem_2_store  = 1'b0;
 
         case (op_i)
             `OPCODE_LUI: begin
@@ -80,6 +83,9 @@ module main_decoder (
                 ALUSrc_o     = 1'b1; // rs1 + S-imm for address
                 ImmSel_o     = `IMM_SEL_S;
                 ALUOp_type_o = `ALUOP_TYPE_ADD; // For address calculation
+                if(funct3_i == `FUNC3_STORE16) begin
+                    mem_2_store = 1'b1;
+                end
             end
             `OPCODE_I_ALU: begin
                 RegWrite_o   = 1'b1;
