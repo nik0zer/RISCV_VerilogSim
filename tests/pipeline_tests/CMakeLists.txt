@@ -16,7 +16,10 @@ if(NOT RISCV_AS OR NOT RISCV_LD OR NOT RISCV_OBJCOPY OR NOT RISCV_READELF)
     message(FATAL_ERROR "One or more RISC-V toolchain utilities not found.")
 endif()
 
-function(add_pipeline_test test_case_name asm_file_rel_path expected_wd3_file_rel_path num_cycles pc_start_hex_no_prefix)
+set(HEX_MODE 1)
+set(ASM_MODE 2)
+
+function(add_pipeline_test test_case_name asm_file_rel_path expected_wd3_file_rel_path num_cycles pc_start_hex_no_prefix mode)
     set(VERILOG_MODULE_NAME "pipeline")
     set(PIPELINE_RTL_FILES
         ${CMAKE_SOURCE_DIR}/rtl/modules/pipeline.sv
@@ -46,9 +49,9 @@ function(add_pipeline_test test_case_name asm_file_rel_path expected_wd3_file_re
 
     set(VERILOG_PARAM_PC_START_ADDR "64'h${pc_start_hex_no_prefix}")
     set(EXPECTED_WD3_FILE_FULL_PATH "${TEST_CASE_INPUT_PATH}/${expected_wd3_file_rel_path}")
-
     set(BUILD_TARGET_NAME ${test_case_name}_build_verilated_pipeline)
-    add_custom_target(${BUILD_TARGET_NAME} ALL
+
+    add_custom_target(${BUILD_TARGET_NAME}_generate_mem_file_asm ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory ${OBJ_DIR}
         COMMAND ${RISCV_AS} -march=rv64i -mabi=lp64 -o ${ASM_OBJECT_FILE_IN_OBJDIR} ${ASM_INPUT_FILE_FULL_PATH}
         COMMAND ${RISCV_LD} --no-relax -Ttext=0x${pc_start_hex_no_prefix} -o ${LINKED_ELF_FILE_IN_OBJDIR} ${ASM_OBJECT_FILE_IN_OBJDIR}
@@ -56,7 +59,14 @@ function(add_pipeline_test test_case_name asm_file_rel_path expected_wd3_file_re
                 "${LINKED_ELF_FILE_IN_OBJDIR}"
                 "${GENERATED_HEX_MEM_FILE_FULL_PATH_IN_OBJDIR}"
                 --objcopy "${RISCV_OBJCOPY}" --readelf "${RISCV_READELF}" --section ".text" --wordsize 4
+    )
 
+    add_custom_target(${BUILD_TARGET_NAME}_generate_mem_file_hex ALL
+        # message("Copying ${ASM_INPUT_FILE_FULL_PATH} to ${GENERATED_HEX_MEM_FILE_FULL_PATH_IN_OBJDIR}")
+        COMMAND ${CMAKE_COMMAND} -E copy ${ASM_INPUT_FILE_FULL_PATH} ${GENERATED_HEX_MEM_FILE_FULL_PATH_IN_OBJDIR}
+    )
+
+    add_custom_target(${BUILD_TARGET_NAME} ALL
         COMMAND ${PROJECT_VERILATOR_EXECUTABLE}
                 -Wall --Wno-fatal --cc --exe --build --trace
                 --top-module ${VERILOG_MODULE_NAME}
@@ -76,6 +86,12 @@ function(add_pipeline_test test_case_name asm_file_rel_path expected_wd3_file_re
         COMMENT "Building pipeline for test case: ${test_case_name}"
         VERBATIM
     )
+
+    if(${mode} EQUAL HEX_MODE)
+        add_dependencies(${BUILD_TARGET_NAME} ${BUILD_TARGET_NAME}_generate_mem_file_hex)
+    elseif(${mode} EQUAL ASM_MODE)
+        add_dependencies(${BUILD_TARGET_NAME} ${BUILD_TARGET_NAME}_generate_mem_file_asm)
+    endif()
 
     set(RUN_TARGET_NAME run_${test_case_name}_pipeline_test)
     add_custom_target(${RUN_TARGET_NAME}
@@ -98,8 +114,9 @@ function(add_pipeline_test test_case_name asm_file_rel_path expected_wd3_file_re
     message(STATUS "  Expected WD3 file: ${EXPECTED_WD3_FILE_FULL_PATH}")
 endfunction()
 
-add_pipeline_test(addi_basic_asm "addi_basic_instr.s" "addi_basic_expected.txt" 12 "10000")
-add_pipeline_test(jump_basic_asm "jump.s" "jump_expected.txt" 20 "10000")
-add_pipeline_test(beq_basic_asm "beq.s" "beq_expected.txt" 22 "10000")
-add_pipeline_test(mem_basic_asm "mem.s" "mem_expected.txt" 12 "10000")
-add_pipeline_test(complex_asm "complex.s" "complex_expected.txt" 55 "10000")
+add_pipeline_test(addi_basic_asm "addi_basic_instr.s" "addi_basic_expected.txt" 12 "10000" ASM_MODE)
+add_pipeline_test(jump_basic_asm "jump.s" "jump_expected.txt" 20 "10000" ASM_MODE)
+add_pipeline_test(beq_basic_asm "beq.s" "beq_expected.txt" 22 "10000" ASM_MODE)
+add_pipeline_test(mem_basic_asm "mem.s" "mem_expected.txt" 12 "10000" ASM_MODE)
+add_pipeline_test(complex_asm "complex.s" "complex_expected.txt" 55 "10000" ASM_MODE)
+add_pipeline_test(addi_slti "addi_slti_instr_mem.hex" "addi_slti_expected.txt" 14 "10000" HEX_MODE)
